@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>인스타 맞팔 판독기 (완결판)</title>
+    <title>인스타 맞팔 판독기 (완결판_안내추가)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -89,9 +89,11 @@
         #result { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; display: none; }
         
         .summary-box { text-align: center; margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 15px; border: 1px solid #eee; }
-        .stat-row { display: flex; justify-content: space-around; margin-bottom: 15px; font-size: 14px; }
+        .stat-row { display: flex; justify-content: space-around; margin-bottom: 10px; font-size: 14px; }
         .stat-item strong { display: block; font-size: 18px; margin-top: 5px; color: #262626; }
         
+        .disclaimer { font-size: 11px; color: #999; margin-top: 12px; line-height: 1.4; letter-spacing: -0.5px; }
+
         .result-title { font-size: 18px; font-weight: 800; color: var(--danger-color); margin-bottom: 15px; text-align: center; }
         
         /* 검색창 및 도구 */
@@ -179,7 +181,6 @@
 
 <script>
     let globalUnfollowerList = [];
-    // 디버깅용: 어떤 파일을 읽었는지 저장
     let debugFileNames = { following: [], followers: [] };
 
     document.getElementById('followingFile').addEventListener('change', function(e) {
@@ -216,7 +217,7 @@
         btn.innerHTML = '데이터 분석 중... ⏳';
         btn.disabled = true;
         document.getElementById('result').style.display = 'none';
-        debugFileNames = { following: [], followers: [] }; // 초기화
+        debugFileNames = { following: [], followers: [] };
 
         try {
             const [followingData, followersData] = await Promise.all([
@@ -229,14 +230,11 @@
 
             console.log(`팔로잉: ${followingList.length}, 팔로워: ${followersList.length}`);
 
-            // ★ 상세 에러 메시지 출력 ★
             if (followingList.length === 0) {
-                const msg = `오류: 팔로잉 목록을 찾을 수 없습니다.\n\n[확인된 파일]\n${debugFileNames.following.join('\n') || '없음'}\n\n이 파일들 안에 아이디가 하나도 없습니다.`;
-                throw new Error(msg);
+                throw new Error(`오류: 팔로잉 목록을 찾을 수 없습니다.\n(확인된 파일: ${debugFileNames.following.join(', ') || '없음'})`);
             }
             if (followersList.length === 0) {
-                const msg = `오류: 팔로워 목록을 찾을 수 없습니다.\n\n[확인된 파일]\n${debugFileNames.followers.join('\n') || '없음'}`;
-                throw new Error(msg);
+                throw new Error(`오류: 팔로워 목록을 찾을 수 없습니다.\n(확인된 파일: ${debugFileNames.followers.join(', ') || '없음'})`);
             }
 
             const followersSet = new Set(followersList);
@@ -288,7 +286,6 @@
 
                 for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
                     const fileName = zipEntry.name.split('/').pop(); 
-                    // 파일명에 following/followers가 포함된 모든 JSON 수집
                     if (regex.test(fileName) && fileName.toLowerCase().endsWith('.json')) {
                         debugFileNames[type].push(fileName);
                         const content = await zipEntry.async("string");
@@ -304,11 +301,8 @@
         throw new Error("지원하지 않는 파일 형식입니다.");
     }
 
-    // ★★★ 핵심 수정: 모든 키를 뒤져서 배열 찾기 (빈 배열이 있어도 건너뜀) ★★★
     function extractUsers(json) {
         let allUsers = [];
-
-        // 배열에서 유저 추출하는 헬퍼 함수
         const parseArray = (list) => {
             const users = [];
             list.forEach(item => {
@@ -321,12 +315,9 @@
             return users;
         };
 
-        if (Array.isArray(json)) {
-            return parseArray(json);
-        } 
+        if (Array.isArray(json)) return parseArray(json);
         
         if (typeof json === 'object') {
-            // JSON 안의 모든 키를 검사 (순서 상관없이 모든 목록 확인)
             Object.values(json).forEach(value => {
                 if (Array.isArray(value)) {
                     const extracted = parseArray(value);
@@ -348,6 +339,11 @@
                 <div class="stat-item"><span>나를 팔로우</span><strong style="color:#262626">${followersCount}</strong></div>
                 <div class="stat-item"><span>맞팔 아님</span><strong style="color:#ed4956">${list.length}</strong></div>
             </div>
+            <p class="disclaimer">
+                ※ 인스타그램 서버 상태나 다운로드 시점에 따라<br>
+                실제 프로필 숫자와 미세한 차이가 있을 수 있습니다.<br>
+                (예: 비활성화 계정, 차단된 계정 등 포함 여부)
+            </p>
             ${followersCount < 10 && followingCount > 100 ? `<div class="ghost-alert">⚠️ 주의: 팔로워가 너무 적습니다. 다운로드 시 기간을 '전체'로 했는지 확인하세요.</div>` : ''}
         `;
 
